@@ -1,0 +1,66 @@
+library(caret)
+library(tidyverse)
+library(survival)
+library(survminer)
+library(sjPlot)
+library(pec) ## probabilidade de transplante
+##Sobrevida com Survival
+
+data(lung)
+str(lung)
+
+## Add survival object. status == 2 is death
+lung$SurvObj <- with(lung, Surv(time, status == 2))
+
+## Kaplan-Meier estimator. The "log-log" confidence interval is preferred.
+km.as.one <- survfit(SurvObj ~ 1, data = lung, conf.type = "log-log")
+km.by.sex <- survfit(SurvObj ~ sex, data = lung, conf.type = "log-log")
+
+## Fit Cox regression: age, sex, Karnofsky performance score, wt loss
+res.cox1 <- coxph(SurvObj ~ age + sex + ph.karno + wt.loss, data =  lung)
+summary(res.cox1)
+
+intervalo <- tidy(exp(confint(res.cox1)))
+resultados <- tidy(res.cox1) %>%
+  mutate(
+    RR = exp(coef(res.cox1)),
+    IC2.5 = intervalo[,2],
+    IC97.5 = intervalo[,3]
+  )
+print(resultados[,c('term','estimate','statistic','p.value','RR','IC2.5','IC97.5')])
+
+##Exemplo Tx
+tx <- read.csv2('tx.csv')
+str(tx)
+tx$Cor <- as.factor(tx$Cor)
+tx$SEXO <- factor(tx$SEXO, levels = c('0','1'), labels = c('masculino','feminino'))
+tx$Período <- as.factor(tx$Período)
+
+## Add survival object. status == 2 is death
+tx$SurvObj <- with(tx, Surv(time, OBITO == 1))
+
+## Kaplan-Meier estimator. The "log-log" confidence interval is preferred.
+km.as.one <- survfit(SurvObj ~ 1, data = tx, conf.type = "log-log")
+km.by.sex <- survfit(SurvObj ~ SEXO, data = tx, conf.type = "log-log")
+plot(km.by.sex)
+summary(km.by.sex)
+km.by.sex
+
+## Fit Cox regression: age, sex, Karnofsky performance score, wt loss
+res.cox1 <- coxph(SurvObj ~ Idade + Cor + SEXO + Período, data =  tx)
+res.cox1
+summary(res.cox1)
+
+
+res.step <- step(res.cox1, method = 'forward')
+summary(res.step)
+
+##Plots
+ggsurvplot(survfit(res.cox1), data = tx, color = "#2E9FDF",
+           ggtheme = theme_minimal())
+
+
+ggsurvplot(res.cox1, data = tx, color = "#2E9FDF",
+           ggtheme = theme_minimal())
+
+
