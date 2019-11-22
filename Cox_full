@@ -1,0 +1,99 @@
+library(tidyverse)
+library(survival)
+library(survminer)
+library(broom)
+
+mortalidade <- read.csv2('mortalidadeT1.csv', dec = '.')
+str(mortalidade)
+
+##Objeto de Sobrevida
+mortalidade$SurvObj <- with(mortalidade, Surv(tempo, Evento_morte == 1))
+
+##Kaplan-Meier
+km.by.cluster <- survfit(SurvObj ~ cluster, data = mortalidade, conf.type = "log-log")
+plot(km.by.cluster)
+summary(km.by.cluster)
+
+##Cox-Regression
+res.cox1 <- coxph(SurvObj ~ cluster, data =  mortalidade)
+summary(res.cox1)
+
+##Resultados do Cox
+ggforest(res.cox1, data = mortalidade)
+
+
+intervalo <- tidy(exp(confint(res.cox1)))
+resultados <- tidy(res.cox1) %>%
+  mutate(
+    RR = exp(coef(res.cox1)),
+    IC2.5 = intervalo[,2],
+    IC97.5 = intervalo[,3])
+print(resultados[,c('term','estimate','statistic','p.value','RR','IC2.5','IC97.5')])
+
+##Plots
+ggsurvplot(survfit(res.cox1), data = mortalidade, color = "#2E9FDF",
+           ggtheme = theme_minimal())
+
+##Plots
+fit <- survfit(Surv(tempo, Evento_morte) ~ cluster, data = mortalidade)
+ggsurvplot(fit, risk.table = TRUE, conf.int = TRUE,
+           fun = "pct", risk.table.col = "strata", pval = TRUE,
+           palette = "Dark2",
+           legend.labs = c("Cluster-1", "Cluster-2"))
+
+##Testando a Proporcionalidade - Hazards assupmtion
+##Schoenfeld residuals
+cox.zph(res.cox1)
+ggcoxdiagnostics(res.cox1)
+
+##Calcular para eventos Totais
+mortalidade$SurvObj2 <- with(mortalidade, Surv(tempo, Evento_total == 1))
+##Cox-Regression
+res.cox2 <- coxph(SurvObj2 ~ cluster, data =  mortalidade)
+summary(res.cox2)
+##Resultados do Cox
+ggforest(res.cox2, data = mortalidade)
+
+
+intervalo <- tidy(exp(confint(res.cox2)))
+resultados <- tidy(res.cox2) %>%
+  mutate(
+    RR = exp(coef(res.cox2)),
+    IC2.5 = intervalo[,2],
+    IC97.5 = intervalo[,3])
+print(resultados[,c('term','estimate','statistic','p.value','RR','IC2.5','IC97.5')])
+
+##Sobrevida (eventos Totais)
+##Plots
+fit <- survfit(Surv(tempo, Evento_total) ~ cluster, data = mortalidade)
+ggsurvplot(fit, risk.table = TRUE, conf.int = TRUE,
+           fun = "pct", risk.table.col = "strata", pval = TRUE,
+           palette = "Dark2",
+           legend.labs = c("Cluster-1", "Cluster-2"))
+
+##Plot DifMVEi x T1
+ggplot(data = mortalidade)+
+  geom_point(aes(x = Dif_MVEi, y = Dif_T1, color = as.factor(Evento_total)))+
+  labs(
+    x = 'Diferença MVEi',
+    y = 'Diferença T1 nativo',
+    color = 'Evento Total'
+  )
+
+##MVEi inicial, Queda do T1, diabetes e enventos totais
+ggplot(data = mortalidade)+
+  geom_point(aes(x = MVEI, y = Dif_T1, shape = as.factor(Evento_total), color = as.factor(DM)),
+             cex = 2)+
+  scale_color_manual(breaks = c("0", "1"),
+                       values=c("blue", "red"))+
+  scale_shape_manual(breaks = c("0", "1"),
+                     values=c(16,8))+
+  labs(
+    x = 'MVEi inicial',
+    y = 'Diferença de T1 nativo',
+    shape = 'Eventos Totais',
+    color = 'Diabetes'
+  )
+             
+             
+             
