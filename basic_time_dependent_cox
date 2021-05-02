@@ -1,0 +1,47 @@
+library(tidyverse)
+library(survival)
+library(survminer)
+library(coxphw)
+library(Greg)
+
+
+## Time dependent model
+data("gastric")
+gastric %>% str()
+gastric$radiation <- as.factor(gastric$radiation)
+gastric$time <- gastric$time / 365
+
+fit1 <- survfit(Surv(time, status) ~ radiation, data = gastric)
+ggsurvplot(fit1)
+
+## cox regression
+cox1 <- coxph(Surv(time, status) ~ radiation, data = gastric)
+summary(cox1)
+
+## Check assumptions
+cox.zph(cox1)
+
+## Add time varing covariate
+cox2 <- coxph(Surv(time, status) ~ radiation + tt(radiation), data = gastric,
+              tt = function(x, t, ...) x * t, method = 'breslow',
+              cluster = id
+                )
+summary(cox2)
+
+## Using Coxphw
+cox3 <- coxphw(Surv(time, status) ~ radiation + time:radiation, data = gastric,
+               template = 'PH')
+summary(cox3)
+
+## Using TimeSpliter
+
+models <- timeSplitter(
+  gastric,
+  by = 4,
+  event_var = 'status',
+  time_var = 'time',
+  event_start_status = 0
+)
+
+cox4 <- coxph(Surv(Start_time, Stop_time, status) ~ radiation, data = models )
+summary(cox4)
