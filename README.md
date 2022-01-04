@@ -18,3 +18,7 @@ https://www.jstor.org/stable/pdf/2289169.pdf?refreqid=excelsior%3A55863d709f9d52
 # other approach: RMST
 
 https://cran.r-project.org/web/packages/survRM2/vignettes/survRM2-vignette3-2.html
+
+# Fit Survival using Poisson regression
+
+https://lisamr.github.io/Survival_tutorial/
