@@ -1,0 +1,45 @@
+library(tidyverse)
+library(survival)
+library(haven)
+library(splines)
+
+data(leukemia, package = "survival")
+colon <-read_dta("colon.dta")
+
+
+aml <- survival::aml
+aml$id <- 1:nrow(aml)
+
+
+len <- aml %>% 
+  filter(status == 1) %>% 
+  pull(time) %>% 
+  unique() %>% sort()
+
+aml_long <- survSplit(Surv(time, status) ~ . , data = aml, cut = len)
+aml_long <- aml_long %>%  
+  rename(tstop = time) %>% 
+  mutate(difftime = tstop - tstart)
+
+
+## fit cox
+model1 <- coxph(Surv(time, status) ~ x , data = aml)
+summary(model1)
+
+
+## fit poisson
+model2 <- glm(status ~ x + log(difftime), dat = aml_long, family = 'poisson')
+summary(model2)
+exp(model2$coefficients)
+
+
+## usign offset
+model3 <- glm(status ~ x + offset(log(difftime)), dat = aml_long, family = 'poisson')
+summary(model3)
+exp(model3$coefficients)
+
+
+## usign offset + factor
+model3 <- glm(status ~ x + offset(log(difftime)) + factor(tstop), dat = aml_long, family = 'poisson')
+summary(model3)
+exp(model3$coefficients)
