@@ -1,0 +1,22 @@
+
+# to combine coefficients of different HZ
+
+## Fixed-Effects Meta-Analysis: Assumes that all studies (or subsets, in your case) share a common effect size, and any differences between subsets are due to sampling error. This approach is suitable when the subsets are similar and expected to have a common true effect size.
+
+## Random-Effects Meta-Analysis: Assumes that the true effect size may vary between subsets, and the goal is to estimate the distribution of these true effect sizes. This approach is more conservative and accounts for potential heterogeneity between subsets.
+
+
+library(metafor)
+
+# Calculate log hazard ratios and standard errors
+data$logHR <- log(data$HR)
+data$se_logHR <- (log(data$UCL) - log(data$LCL)) / (2 * qnorm(0.975))
+
+# Create an 'escalc' object
+escalc_obj <- escalc(measure = "GENLOG", xi = logHR, sei = se_logHR, data = data)
+
+# Perform meta-analysis
+res <- rma(yi = yi, sei = sei, data = escalc_obj, method = "REML")
+
+# Print meta-analysis results
+summary(res)
